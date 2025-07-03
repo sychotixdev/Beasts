@@ -1,13 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
 using Beasts.Data;
 using Beasts.ExileCore;
 using ExileCore.PoEMemory.Components;
+using ExileCore.PoEMemory.MemoryObjects;
 using ExileCore.Shared.Enums;
 using ImGuiNET;
 using SharpDX;
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
 using Vector2 = System.Numerics.Vector2;
 using Vector3 = System.Numerics.Vector3;
 
@@ -36,6 +37,9 @@ public partial class Beasts
                 FontAlign.Center);
 
             DrawFilledCircleInWorldPosition(pos, 50, GetSpecialBeastColor(beast.DisplayName));
+
+            if (Settings.DrawNamesOnMap.Value)
+                Graphics.DrawTextWithBackground(beast.DisplayName, GameController.IngameState.Data.GetGridMapScreenPosition(trackedBeast.Positioned.GridPosNum), GetSpecialBeastColor(beast.DisplayName), FontAlign.Center, SharpDX.Color.Black);
         }
     }
 
@@ -93,6 +97,9 @@ public partial class Beasts
 
     private void DrawBeastsWindow()
     {
+        if (!Settings.DrawBeastsWindow)
+            return;
+
         ImGui.SetNextWindowSize(new Vector2(0, 0));
         ImGui.SetNextWindowBgAlpha(0.6f);
         ImGui.Begin("Beasts Window", ImGuiWindowFlags.NoDecoration);
