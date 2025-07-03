@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Beasts.Data;
@@ -125,6 +125,9 @@ public class BeastsSettings : ISettings
     public ToggleNode Enable { get; set; } = new ToggleNode(false);
 
     public ButtonNode FetchBeastPrices { get; set; } = new ButtonNode();
+    public ToggleNode DrawNamesOnMap { get; set; } = new ToggleNode(false);
+    public ToggleNode DrawBeastsWindow { get; set; } = new ToggleNode(false);
+
 
     [JsonIgnore] public CustomNode LastUpdated { get; set; }
 
