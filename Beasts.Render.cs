@@ -1,14 +1,11 @@
+using System.Globalization;
+using System.Linq;
 using Beasts.Data;
 using Beasts.ExileCore;
 using ExileCore.PoEMemory.Components;
-using ExileCore.PoEMemory.MemoryObjects;
 using ExileCore.Shared.Enums;
 using ImGuiNET;
 using SharpDX;
-using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
 using Vector2 = System.Numerics.Vector2;
 using Vector3 = System.Numerics.Vector3;
 
@@ -25,45 +22,50 @@ public partial class Beasts
 
     private void DrawInGameBeasts()
     {
-        foreach (var trackedBeast in _trackedBeasts
-                     .Select(beast => new { Positioned = beast.Value.GetComponent<Positioned>(), beast.Value.Metadata })
-                     .Where(beast => beast.Positioned != null))
+        foreach (var entity in _trackedBeasts.Values)
         {
-            var beast = BeastsDatabase.AllBeasts.Where(beast => trackedBeast.Metadata == beast.Path).First();
+            var positioned = entity.GetComponent<Positioned>();
+            if (positioned == null) continue;
 
-            if (!Settings.Beasts.Any(b => b.Path == beast.Path)) continue;
-            var pos = GameController.IngameState.Data.ToWorldWithTerrainHeight(trackedBeast.Positioned.GridPosition);
-            Graphics.DrawText(beast.DisplayName, GameController.IngameState.Camera.WorldToScreen(pos), Color.White,
-                FontAlign.Center);
+            var beast = BeastsDatabase.AllBeasts.FirstOrDefault(b => b.Path == entity.Metadata);
+            if (beast == null || Settings.Beasts.All(b => b.Path != beast.Path)) continue;
 
-            DrawFilledCircleInWorldPosition(pos, 50, GetSpecialBeastColor(beast.DisplayName));
+            var displayText = beast.DisplayName;
+            var isTrapped = entity.TryGetComponent<Buffs>(out var buffComp) && buffComp.HasBuff("capture_monster_trapped");
+            if (isTrapped)
+                displayText = $"{beast.DisplayName}\nTrapped!";
+
+            var pos = GameController.IngameState.Data.ToWorldWithTerrainHeight(positioned.GridPosition);
+            Graphics.DrawTextWithBackground(
+                displayText, GameController.IngameState.Camera.WorldToScreen(new Vector3(pos.X, pos.Y, pos.Z)), Color.White,
+                FontAlign.Center | FontAlign.VerticalCenter, Color.Black with { A = 165 });
 
             if (Settings.DrawNamesOnMap.Value)
-                Graphics.DrawTextWithBackground(beast.DisplayName, GameController.IngameState.Data.GetGridMapScreenPosition(trackedBeast.Positioned.GridPosNum), GetSpecialBeastColor(beast.DisplayName), FontAlign.Center, SharpDX.Color.Black);
+            {
+                var fontSize = Graphics.MeasureText(displayText);
+                var screenPos = GameController.IngameState.Data.GetGridMapScreenPosition(positioned.GridPosNum);
+                var newScreenPos = new Vector2(screenPos.X, screenPos.Y - fontSize.Y);
+
+                Graphics.DrawTextWithBackground(
+                    displayText, newScreenPos, GetSpecialBeastColor(beast.DisplayName), FontAlign.Center | FontAlign.VerticalCenter,
+                    Color.Black with { A = 165 });
+            }
         }
     }
 
     private Color GetSpecialBeastColor(string beastName)
     {
         if (beastName.Contains("Vivid"))
-        {
             return new Color(255, 250, 0);
-        }
 
         if (beastName.Contains("Wild"))
-        {
             return new Color(255, 0, 235);
-        }
 
         if (beastName.Contains("Primal"))
-        {
             return new Color(0, 245, 255);
-        }
 
         if (beastName.Contains("Black"))
-        {
             return new Color(255, 255, 255);
-        }
 
         return Color.Red;
     }
@@ -81,6 +83,7 @@ public partial class Beasts
         {
             var beastMetadata = Settings.Beasts.Find(b => b.DisplayName == beast.DisplayName);
             if (beastMetadata == null) continue;
+
             if (!Settings.BeastPrices.ContainsKey(beastMetadata.DisplayName)) continue;
 
             var center = new Vector2(beast.GetClientRect().Center.X, beast.GetClientRect().Center.Y);
@@ -104,24 +107,22 @@ public partial class Beasts
         ImGui.SetNextWindowBgAlpha(0.6f);
         ImGui.Begin("Beasts Window", ImGuiWindowFlags.NoDecoration);
 
-        if (ImGui.BeginTable("Beasts Table", 2,
-                ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersOuter | ImGuiTableFlags.BordersV))
+        if (ImGui.BeginTable("Beasts Table", 2, ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersOuter | ImGuiTableFlags.BordersV))
         {
             ImGui.TableSetupColumn("Price", ImGuiTableColumnFlags.WidthFixed, 48);
             ImGui.TableSetupColumn("Beast");
 
-            foreach (var beastMetadata in _trackedBeasts
-                         .Select(trackedBeast => trackedBeast.Value)
-                         .Select(beast => Settings.Beasts.Find(b => b.Path == beast.Metadata))
-                         .Where(beastMetadata => beastMetadata != null))
+            foreach (var entity in _trackedBeasts.Values)
             {
+                var beastMetadata = Settings.Beasts.Find(b => b.Path == entity.Metadata);
+                if (beastMetadata == null) continue;
+
                 ImGui.TableNextRow();
 
                 ImGui.TableNextColumn();
 
-                ImGui.Text(Settings.BeastPrices.TryGetValue(beastMetadata.DisplayName, out var price)
-                    ? $"{price.ToString(CultureInfo.InvariantCulture)}c"
-                    : "0c");
+                ImGui.Text(
+                    Settings.BeastPrices.TryGetValue(beastMetadata.DisplayName, out var price) ? $"{price.ToString(CultureInfo.InvariantCulture)}c" : "0c");
 
                 ImGui.TableNextColumn();
 
@@ -136,29 +137,5 @@ public partial class Beasts
         }
 
         ImGui.End();
-    }
-
-    private void DrawFilledCircleInWorldPosition(Vector3 position, float radius, Color color)
-    {
-        var circlePoints = new List<Vector2>();
-        const int segments = 15;
-        const float segmentAngle = 2f * MathF.PI / segments;
-
-        for (var i = 0; i < segments; i++)
-        {
-            var angle = i * segmentAngle;
-            var currentOffset = new Vector2(MathF.Cos(angle), MathF.Sin(angle)) * radius;
-            var nextOffset = new Vector2(MathF.Cos(angle + segmentAngle), MathF.Sin(angle + segmentAngle)) * radius;
-
-            var currentWorldPos = position + new Vector3(currentOffset, 0);
-            var nextWorldPos = position + new Vector3(nextOffset, 0);
-
-            circlePoints.Add(GameController.Game.IngameState.Camera.WorldToScreen(currentWorldPos));
-            circlePoints.Add(GameController.Game.IngameState.Camera.WorldToScreen(nextWorldPos));
-        }
-
-        Graphics.DrawConvexPolyFilled(circlePoints.ToArray(),
-            color with { A = Color.ToByte((int)((double)0.2f * byte.MaxValue)) });
-        Graphics.DrawPolyLine(circlePoints.ToArray(), color, 2);
     }
 }
