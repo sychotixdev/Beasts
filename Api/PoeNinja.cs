@@ -10,17 +10,6 @@ public static class PoeNinja
 {
     private static readonly string PoeNinjaUrl = "https://poe.ninja/api/data/itemoverview?league=Mercenaries&type=Beast";
 
-    private class PoeNinjaLine
-    {
-        [JsonProperty("name")] public string Name;
-        [JsonProperty("chaosValue")] public float ChaosValue;
-    }
-
-    private class PoeNinjaResponse
-    {
-        [JsonProperty("lines")] public List<PoeNinjaLine> Lines;
-    }
-
     public static async Task<Dictionary<string, float>> GetBeastsPrices()
     {
         using var httpClient = new HttpClient();
@@ -31,5 +20,16 @@ public static class PoeNinja
         var poeNinjaResponse = JsonConvert.DeserializeObject<PoeNinjaResponse>(json);
 
         return poeNinjaResponse.Lines.ToDictionary(line => line.Name, line => line.ChaosValue);
+    }
+
+    private class PoeNinjaLine
+    {
+        [JsonProperty("chaosValue")] public float ChaosValue;
+        [JsonProperty("name")] public string Name;
+    }
+
+    private class PoeNinjaResponse
+    {
+        [JsonProperty("lines")] public List<PoeNinjaLine> Lines;
     }
 }

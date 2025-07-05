@@ -30,8 +30,7 @@ public class CapturedBeastsPanel : Element
                 var beastContainer = BeastsDisplay?.GetChildAtIndex(i);
                 if (beastContainer == null || beastContainer.IsVisible == false) continue;
 
-                beasts.AddRange(beastContainer.GetChildAtIndex(1).Children
-                    .Select(beast => GetObject<CapturedBeast>(beast.Address)));
+                beasts.AddRange(beastContainer.GetChildAtIndex(1).Children.Select(beast => GetObject<CapturedBeast>(beast.Address)));
             }
 
             return beasts;
