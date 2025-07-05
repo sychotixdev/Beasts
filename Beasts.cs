@@ -13,6 +13,7 @@ namespace Beasts;
 
 public partial class Beasts : BaseSettingsPlugin<BeastsSettings>
 {
+    private readonly HashSet<long> _removedBeastIds = new();
     private readonly Dictionary<long, Entity> _trackedBeasts = new();
 
     public override void OnLoad()
@@ -42,10 +43,12 @@ public partial class Beasts : BaseSettingsPlugin<BeastsSettings>
     public override void AreaChange(AreaInstance area)
     {
         _trackedBeasts.Clear();
+        _removedBeastIds.Clear();
     }
 
     public override void EntityAdded(Entity entity)
     {
+        if (_removedBeastIds.Contains(entity.Id)) return;
         if (entity.Rarity != MonsterRarity.Rare) return;
         foreach (var _ in BeastsDatabase.AllBeasts.Where(beast => entity.Metadata == beast.Path))
         {
@@ -71,6 +74,7 @@ public partial class Beasts : BaseSettingsPlugin<BeastsSettings>
 
         foreach (var id in capturedBeastIds)
         {
+            _removedBeastIds.Add(id);
             _trackedBeasts.Remove(id);
         }
     }
